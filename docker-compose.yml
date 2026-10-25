@@ -1,0 +1,92 @@
+name: trendsky
+x-api-environment: &api-environment
+  APP_ENV: ${APP_ENV:-development}
+  POSTGRES_HOST: db
+  POSTGRES_DB: ${POSTGRES_DB:-trendsky}
+  APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env}
+  CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-trendsky}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./infrastructure/docker/init-db.sh:/docker-entrypoint-initdb.d/10-app-role.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1
+    logging: &logging
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  migrate:
+    build: { context: ., dockerfile: infrastructure/docker/api.Dockerfile }
+    environment: *api-environment
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db: { condition: service_healthy }
+    restart: "no"
+    logging: *logging
+
+  api:
+    build: { context: ., dockerfile: infrastructure/docker/api.Dockerfile }
+    environment: *api-environment
+    ports: ["127.0.0.1:${API_PORT:-8000}:8000"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    mem_limit: 384m
+    cpus: 1
+    logging: *logging
+
+  web:
+    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile }
+    environment:
+      API_INTERNAL_URL: http://api:8000
+    ports: ["127.0.0.1:${WEB_PORT:-3000}:3000"]
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 6s
+      retries: 5
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1
+    logging: *logging
+
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["production"]
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web: { condition: service_healthy }
+    restart: unless-stopped
+    logging: *logging
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

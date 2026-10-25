@@ -1,0 +1,10 @@
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "About" };
+export default function About() {
+  return <div className="shell interior about-page"><div className="eyebrow">CURIOSITY, WITH CONTEXT</div><h1>A clearer view of<br />the conversation.</h1><p className="page-intro">TrendSky is an independent social intelligence and predictive analytics project built to explore how public conversations develop.</p>
+    <section><h2>Discover what’s rising.</h2><p>Inspired by the simplicity of Google Trends, TrendSky is being built for observed public conversation activity on Bluesky. It is not affiliated with Google or Bluesky and does not use Google search data.</p></section>
+    <section id="coverage"><span className="label">DATA & TRANSPARENCY</span><h2>Every observation has a boundary.</h2><p>Collection has not started. No live trends, historical metrics or predictions are available in this foundation release. Once ingestion is implemented, coverage will begin at the recorded collection start time; earlier history will not be implied.</p><p>Observed Bluesky posts cannot represent the entire network, private conversations, search interest or the whole internet. Missing coverage will be distinguished from zero activity. Collection gaps, retention and deletion handling will be documented with ingestion.</p></section>
+    <section id="predictions"><span className="label">MODELS & UNCERTAINTY</span><h2>Evidence before prediction.</h2><p>Predictive modelling is planned after data collection and historical analysis. Models must be evaluated chronologically against simple baselines. No model performance, confidence interval or causal explanation is claimed in this release.</p></section>
+    <section><span className="label">CURRENT RELEASE</span><h2>A foundation for discovery.</h2><p>Milestone 1 establishes the application, search navigation, themes, API and database infrastructure. Trend detection, comparison charts and machine learning remain future work. TrendSky is a personal portfolio project; its outcomes will be reported using measured results.</p></section>
+  </div>;
+}

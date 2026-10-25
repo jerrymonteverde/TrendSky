@@ -1,0 +1,65 @@
+name: Foundation checks
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: trendsky_test
+          # Only this disposable CI service uses trust authentication.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d trendsky_test"
+          --health-interval 5s --health-timeout 3s --health-retries 15
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://postgres@localhost:5432/trendsky_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.14", cache: pip }
+      - run: pip install -r requirements-dev.lock && pip install --no-deps -e .
+      - run: ruff check apps/api tests/api
+      - run: ruff format --check apps/api tests/api
+      - run: mypy
+      - run: pytest -q
+      - run: pip-audit -r requirements.lock --no-deps --disable-pip
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm run lint && npm run typecheck && npm test && npm run build
+      - run: npm audit --audit-level=high
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with: { name: browser-report, path: "playwright-report/", retention-days: 7 }
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate ephemeral test configuration
+        run: |
+          printf 'POSTGRES_PASSWORD=%s\nAPP_DB_PASSWORD=%s\n' "$(openssl rand -hex 24)" "$(openssl rand -hex 24)" > /tmp/trendsky-ci.env
+      - run: docker compose --env-file /tmp/trendsky-ci.env config --quiet
+      - run: docker compose --env-file /tmp/trendsky-ci.env up --build -d --wait --wait-timeout 180
+      - run: python scripts/smoke.py
+      - if: always()
+        run: docker compose --env-file /tmp/trendsky-ci.env down

@@ -1,0 +1,22 @@
+{
+  "name": "trendsky",
+  "private": true,
+  "workspaces": [
+    "apps/web"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace=@trendsky/web",
+    "build": "npm run build --workspace=@trendsky/web",
+    "start": "npm run start --workspace=@trendsky/web",
+    "lint": "npm run lint --workspace=@trendsky/web",
+    "typecheck": "npm run typecheck --workspace=@trendsky/web",
+    "test": "npm run test --workspace=@trendsky/web",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}
