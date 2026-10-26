@@ -1,4 +1,4 @@
-name: Foundation checks
+name: TrendSky checks
 on:
   pull_request:
   push:
@@ -30,8 +30,8 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.14", cache: pip }
       - run: pip install -r requirements-dev.lock && pip install --no-deps -e .
-      - run: ruff check apps/api tests/api
-      - run: ruff format --check apps/api tests/api
+      - run: ruff check apps/api tests/api scripts/benchmark_recovery_postgres.py scripts/verify_recovery.py
+      - run: ruff format --check apps/api tests/api scripts/benchmark_recovery_postgres.py scripts/verify_recovery.py
       - run: mypy
       - run: pytest -q
       - run: pip-audit -r requirements.lock --no-deps --disable-pip
@@ -58,6 +58,7 @@ jobs:
       - name: Generate ephemeral test configuration
         run: |
           printf 'POSTGRES_PASSWORD=%s\nAPP_DB_PASSWORD=%s\n' "$(openssl rand -hex 24)" "$(openssl rand -hex 24)" > /tmp/trendsky-ci.env
+          printf 'INGESTION_ENABLED=false\n' >> /tmp/trendsky-ci.env
       - run: docker compose --env-file /tmp/trendsky-ci.env config --quiet
       - run: docker compose --env-file /tmp/trendsky-ci.env up --build -d --wait --wait-timeout 180
       - run: python scripts/smoke.py

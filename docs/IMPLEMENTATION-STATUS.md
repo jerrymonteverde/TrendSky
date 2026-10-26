@@ -1,49 +1,56 @@
 # Implementation status
 
-Last updated: 2026-10-24. Work is limited to Milestone 1.
+Last updated: 2026-10-25 (America/Hermosillo). Allowed statuses: Not Started, In Progress, Implemented, Tested, Blocked.
 
-**Milestone 1: Blocked — implementation and local application tests are finished; full Docker/PostgreSQL acceptance remains unverified.** Docker socket access is denied for this execution user. Elevated `docker info` was also denied; `sudo -n docker info` requires interactive authentication. No destructive permission or host configuration changes were attempted. The existing `.env` was preserved.
+Milestone 3.1 is **In Progress**. The NUL-bearing explicit hashtag defect is reproduced and repaired on isolated PostgreSQL 18. Operational recovery is **Blocked** by Docker permissions; no operational database or checkpoint was modified. The final read-only API observation at **2026-10-26 04:55:05 UTC** still showed 167,331 retained posts, cursor `26446992220`, reconnecting ingestion, and stale trends. The repair is not deployed. The existing backup file is zero bytes and must not be treated as a valid backup.
 
-Allowed statuses: Not Started, In Progress, Implemented, Tested, Blocked.
+| Milestone 3.1 deliverable | Status | Evidence / limit |
+| --- | --- | --- |
+| Root cause reproduction | Tested | Read-only stalled-cursor replay found NUL in an explicit hashtag facet; synthetic equivalent failed on PostgreSQL 18 before repair |
+| PostgreSQL text/metadata compatibility | Tested | Post text, hashtag facets, language JSON, valid multilingual Unicode and malformed scalar handling |
+| Transaction/queue/checkpoint integrity | Tested | Actual PG replay, updates/deletes, rollback after constraint failure and unchanged cursor/jobs |
+| Safe error observability | Tested | JSON allowlist, SQLSTATE/static messages, correlation/phase/attempt, safe stack locations; no SQL parameters or exception text |
+| Deterministic fault handling | Tested | Durable operator hold, coverage record, no skipped events/checkpoint reset, restart respects hold |
+| Transient connection/transaction recovery | Tested | Actual PG lock timeout/retry and terminated pooled connection recovery; deterministic fixtures for worker reconnection/shutdown |
+| Separate ingestion/trend/database health | Tested | Recent commit and heartbeat gates; stale rates hidden; stopped/delayed analysis cannot serve current rankings; readiness distinguishes degraded schema |
+| Bounded trend catch-up | Tested | 25,436 synthetic PG queue jobs drained, no-op replay; configurable inter-batch pause |
+| Backend regression suite | Tested | 84 passed, with real disposable PostgreSQL contracts enabled |
+| Frontend regression checks | Tested | 22 unit tests, 26 desktop/mobile browser tests, ESLint, TypeScript and production build passed |
+| Python quality / Compose validation | Tested | Ruff lint/format, strict mypy, diff whitespace and `docker compose config --quiet` passed |
+| PostgreSQL measurements | Tested | 25,000 synthetic writes; median/p95 148.97/416.90 ms per 250; 30.74 s queue drain; 3.51 s refresh; actual EXPLAIN/BUFFERS/catalog artifact |
+| Production backup / catalog inspection | Blocked | Zero-byte existing archive; Docker daemon denied; operational sizes/WAL/locks/IO not measured |
+| Production ingestion/trend restoration | Blocked | Images not deployed; no sustained repaired live collection or controlled operational restart verified |
+| Recovery runbook and incident report | Implemented | [Recovery report](MILESTONE-3.1-RECOVERY-REPORT.md), [analysis](INGESTION-INCIDENT-ANALYSIS.md), read-only diagnostics and sustained verifier |
+| Milestone 4 | Not Started | No new product/analytical feature or redesign |
+
+The table below preserves **historical Milestone 3 implementation evidence** from the preceding execution. Its older operational observations and SQLite-only measurements are not the current recovery status.
 
 | Deliverable | Status | Evidence / limit |
 | --- | --- | --- |
-| Monorepo on develop | Implemented | Web, API, infrastructure, tests, CI, docs; no push |
-| Next.js production build | Tested | `npm run build` with webpack; standalone server started successfully |
-| Five initial routes and homepage | Tested | Playwright desktop/mobile; original brand layout |
-| Search redirect and query preservation | Tested | URL encoding, hashtag/phrase/Spanish query, reload, blank input |
-| Light/dark themes | Tested | Light default; toggle and persisted reload |
-| Responsive layouts | Tested | Desktop Chromium and mobile viewport overflow checks; not physical device certification |
-| FastAPI | Tested | API contracts, CORS, error safety, rate limiting, liveness and HTTP failure behavior |
-| Frontend/backend communication | Tested | Typed client tests; real API 503 visibly handled by web; healthy contract tested with fixtures |
-| SQLAlchemy source registry | Tested | SQLite persistence fixtures; no conversation observations |
-| Alembic migration | Tested | SQLite upgrade twice, seed, ORM/schema comparison, downgrade, re-upgrade |
-| PostgreSQL configuration and restricted app role | Implemented | PostgreSQL 18 service and initialization SQL; not executed against PostgreSQL locally |
-| PostgreSQL connection and migration acceptance | Blocked | PostgreSQL-specific test skipped without `TEST_DATABASE_URL`; CI job provided, not executed here |
-| Compose configuration | Tested | `docker compose config --quiet` using ephemeral non-secret validation values |
-| Docker image builds and full startup | Blocked | Docker socket permission; no successful container build/start claim |
-| Caddy HTTPS | Implemented | Optional production profile; no deployment/TLS verification |
-| Foundational automated tests | Tested | 7 TypeScript; 9 Python passed, 1 PostgreSQL test skipped; 14 browser tests passed against development and again against production standalone |
-| Dependency audits | Tested | npm and pinned Python runtime audit: no known vulnerabilities at time of execution |
-| GitHub Actions | Implemented | Lint/type/unit/browser/PostgreSQL/Docker/audit jobs; remote workflow not run |
-| README and engineering docs | Implemented | Run instructions, architecture, design, dictionary, limitations and report |
+| Existing illustrated product and ingestion | In Progress | Initially observed collecting; final check found 86,856 retained posts with the collector reconnecting and stalled at 03:00 UTC |
+| Source text PostgreSQL compatibility | Tested | Replay sample found six NUL-containing posts; persistence now replaces NUL with U+FFFD and advances the batch atomically. Live recovery awaits image deployment |
+| Deterministic hashtag/keyword/phrase extraction | Tested | Unicode, English/Spanish stopwords, declared/unknown languages, duplicates, facet tags, URL/spam filtering and phrase boundaries |
+| Incremental source change capture | Tested | SQLite migration triggers queue inserts/edits/deletes, preserve existing source rows, and invalidate/recompute affected derived results |
+| SQL window aggregation | Tested | Five window sizes, source event placement, exact contributors across languages, half-open boundaries, late arrivals, replay and retention correction |
+| Growth, acceleration, robust baseline and momentum | Tested | Formula, threshold, zero-baseline, partial-coverage and single-author scenarios |
+| Popular / Rising / Emerging ranking snapshots | Tested | Deterministic SQL/statistical pipeline and stable API ordering; snapshot freshness checked |
+| Ingestion-aware coverage quality | Tested | Complete/partial/missing-history windows; missing history chart points remain null |
+| Migration `0003_trends` | Tested | SQLite upgrade/down/up/schema parity and source-record preservation; operational PostgreSQL not migrated here |
+| Read-only trend/topic APIs | Tested | Valid/invalid filters, pagination, empty data, topic details, stale results and source-deletion invalidation |
+| Python suite | Tested | 49 passed; two PostgreSQL-only contracts skipped without disposable `TEST_DATABASE_URL` |
+| Frontend unit suite | Tested | 19 passed, including measured cards, transport, exact artwork aliases and null-aware sparklines |
+| Responsive browser regressions | Tested | 26 desktop/mobile Chromium checks passed; trend filters, summaries, images, themes, navigation and overflow |
+| Frontend lint/type/build | Tested | ESLint, TypeScript and standalone Next.js production build |
+| Python quality | Tested | Ruff check/format and mypy |
+| Synthetic performance evidence | Tested | 25,000 source fixtures processed; measured timings, RSS and SQLite query plan in `docs/evidence/milestone-3-synthetic.json` |
+| Dedicated trends Compose service | Implemented | No host port; 384 MiB, 0.5 CPU; migration-success gate; config validation passes |
+| Live PostgreSQL trigger/query/worker acceptance | Blocked | Docker socket access denied, noninteractive sudo requires authentication; no live Milestone 3 rankings claimed |
+| Methodology, data dictionary and report | Implemented | Formulas, correction strategy, limits, run commands, actual tests and evidence |
+| Milestone 4 full Explore/Compare | Not Started | Basic topic summaries only are included in Milestone 3 |
+| Spark/Databricks/ML/LLM features | Not Started | No unused analytical dependencies introduced |
 
 ## Remaining acceptance gate
 
-On a Docker-capable host: merge `.env.example` settings, supply distinct database secrets, run `docker compose up --build -d --wait --wait-timeout 180`, then `python3 scripts/smoke.py`. Execute the PostgreSQL migration contract against a disposable database. Confirm Caddy separately if using the production profile. Only then mark Docker/PostgreSQL acceptance Tested and Milestone 1 fully verified.
+On the Docker-authorized host, follow the backup-first sequence in [MILESTONE-3.1-RECOVERY-REPORT.md](MILESTONE-3.1-RECOVERY-REPORT.md). No new migration is needed if the deployed revision is already `0003_trends`; inspect rather than downgrade/reseed. Confirm repaired ingestion, checkpoint progress, backlog drain and real rankings over sustained observation and a controlled worker restart. Record actual production results before marking recovery complete. Isolated PostgreSQL contracts and EXPLAIN measurements have now been executed; production load remains unmeasured.
 
-## Roadmap
-
-| Milestone | Status |
-| --- | --- |
-| 1 — Foundation | Blocked |
-| 2 — Bluesky ingestion | Not Started |
-| 3 — Trend detection | Not Started |
-| 4 — Explore and Compare analytics | Not Started |
-| 5 — Data engineering | Not Started |
-| 6 — Machine learning | Not Started |
-| 7 — Advanced analytics | Not Started |
-| 8 — MLOps and experimentation | Not Started |
-| 9 — Production and portfolio | Not Started |
-
-No ingestion service was started. No charts, historical data, trend scores, forecasts, cloud jobs or fabricated datasets are presented as implemented.
+The test-only browser API and SQLite validation fixtures never enter the public application. No synthetic result is presented as a live trend.

@@ -1,6 +1,8 @@
 from alembic import context
+from trendsky_api import models as _models  # noqa: F401
 from trendsky_api.database import Base, get_engine
 from trendsky_api.models import DataSource  # noqa: F401
+from trendsky_api.trends import models as _trends_models  # noqa: F401
 
 target_metadata = Base.metadata
 

@@ -31,6 +31,7 @@ pnpm-debug.log*
 *.sqlite
 *.sqlite3
 *.db
+/backups/
 
 # Machine Learning
 mlruns/

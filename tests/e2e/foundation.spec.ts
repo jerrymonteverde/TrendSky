@@ -4,9 +4,37 @@ test("homepage, font, empty state and responsive layout", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Discover what’s rising." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Trending Right Now" })).toBeVisible();
-  await expect(page.getByRole("status")).toContainText(/Collection (not started|status unavailable)/);
+  await expect(page.getByRole("status")).toContainText(/Collection (not started|status unavailable|interrupted)|Collecting Bluesky posts/);
   await page.evaluate(() => document.fonts.ready);
   expect(await page.evaluate(() => getComputedStyle(document.body).fontFamily)).toContain("ubuntu");
+  await expect(page.getByRole("group", { name: "Suggested searches" }).getByRole("link")).toHaveCount(6);
+  await expect(page.getByRole("img", { name: /group of people sharing conversations/ })).toBeVisible();
+  expect(await page.locator(".hero-image").evaluate((image: HTMLImageElement) => image.naturalWidth > 0)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test("collection status and trend cards render measured fixture values", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("status")).toContainText("Collecting Bluesky posts");
+  const collection = page.getByRole("region", { name: "Bluesky collection status" });
+  await expect(collection.getByText("Bluesky", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Trending Right Now" })).toBeVisible();
+  await expect(page.getByRole("article", { name: "Rank 1: #caturday" })).toBeVisible();
+  await expect(page.getByText("10 unique contributors")).toBeVisible();
+});
+
+test("a suggested query performs an ordinary shareable search", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("group", { name: "Suggested searches" }).getByRole("link", { name: "#tech" }).click();
+  await expect(page).toHaveURL(/\/explore\?q=%23tech/);
+  expect(new URL(page.url()).searchParams.get("q")).toBe("#tech");
+});
+
+test("tablet composition fits without clipped controls or horizontal scrolling", async ({ page }) => {
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Discover what’s rising." })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Explore a topic, keyword or hashtag" })).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 

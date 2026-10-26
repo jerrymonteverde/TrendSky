@@ -22,7 +22,7 @@ def run_migration_contract(engine, monkeypatch):
             text("SELECT collection_status FROM data_sources")
         ).scalar_one() == ("not_started")
         assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == (
-            "0001_sources"
+            "0003_trends"
         )
     from alembic.autogenerate import compare_metadata
     from alembic.migration import MigrationContext

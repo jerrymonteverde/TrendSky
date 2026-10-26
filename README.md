@@ -4,18 +4,29 @@
 
 An independent social intelligence and predictive analytics project for public Bluesky conversations. Inspired by the simplicity of Google Trends, with a different data source: **observed conversation activity, not search interest**.
 
-Milestone 1 implements the application foundation. No posts have been collected, no trends are ranked and no models are trained. [Implementation status](docs/IMPLEMENTATION-STATUS.md) records verification and outstanding acceptance checks.
+Milestones 1–2 established the illustrated application and public Bluesky collection. Milestone 3 implements deterministic topic discovery, coverage-aware statistics, persisted rankings and real-data frontend contracts. The existing ingestion API was observed collecting during development; applying and verifying the new PostgreSQL migration/worker requires Docker access. See [implementation status](docs/IMPLEMENTATION-STATUS.md) and the [Milestone 3 report](docs/MILESTONE-3-REPORT.md).
 
 ## Foundation
 
 - Original responsive homepage and Explore, Trending Now, Predictions and About routes.
+- Illustrated responsive sunset-terrace hero, suggested searches and an editorial collection status panel.
+- Eighteen optional topic illustration crops and a reusable trend card that only displays supplied metrics.
+- Refreshed Explore, Trending, Predictions and About pages with honest, data-free analytics states.
 - Blue Sky brand tokens, self-hosted Ubuntu Regular and persistent light/dark themes.
 - Keyboard and touch search; topic queries survive navigation, URL sharing and reloads.
 - Honest empty states and a separate state for an unavailable API.
 - FastAPI liveness, database/schema readiness, collection summary and OpenAPI documentation.
+- Dedicated async Jetstream v2 ingestion worker with bounded buffering, batched writes, replay cursor, idempotent updates/deletes, account tombstones, operational counters, retention and coverage gaps.
+- Durable public-post, normalized hashtag, checkpoint, collection-period and known-gap records via Alembic migration `0002_ingestion`.
+- Read-only ingestion status, statistics and bounded coverage API endpoints; homepage status is sourced from worker heartbeat and database counts.
+- Incremental hashtag, English/Spanish keyword and curated phrase discovery, with transactional edit/delete/retention correction.
+- Popular Now, Rising Fast and Emerging snapshots for 5 minutes, 15 minutes, 1 hour, 6 hours and 24 hours. Growth is withheld when comparable collection coverage is unavailable.
+- Illustrated measured topic cards, language/window controls and a basic topic activity history. Artwork maps only to reviewed exact labels.
 - SQLAlchemy source registry, reversible Alembic migration and PostgreSQL configuration.
 - Docker Compose, migration startup gate, non-root web/API containers and optional Caddy HTTPS.
 - Python, TypeScript and Playwright tests; GitHub Actions validation and dependency auditing.
+
+The 1920 × 640 hero is a 202 KB WebP. The eighteen 352 × 194 topic crops total 348 KB. The full illustrated dashboard reference is never rendered as UI. See [illustration guidelines](docs/ILLUSTRATION-GUIDELINES.md).
 
 ## Stack and boundaries
 
@@ -29,9 +40,14 @@ flowchart LR
   Caddy --> Web[Next.js :3000]
   Caddy --> API[FastAPI :8000]
   Web -->|server-side collection status| API
+  Worker[Jetstream v2 worker] -->|filtered commit/account/sync events| Jetstream[Bluesky Jetstream]
+  Worker -->|bounded batches + cursor transaction| DB
+  DB -->|transactional URI change queue| Trends[Independent trend processor]
+  Trends -->|topic mentions and ranking snapshots| DB
   API --> DB[(PostgreSQL)]
-  Migration[Alembic one-shot migration] --> DB
-  Migration -->|success gates startup| API
+Migration[Alembic one-shot migration] --> DB
+Migration -->|success gates startup| API
+Migration -->|success gates startup| Worker
 ```
 
 ## Run with Docker
@@ -44,7 +60,7 @@ Requires Docker Engine and Docker Compose with permission to access the daemon. 
 
 ```bash
 docker compose config --quiet
-docker compose up --build -d --wait --wait-timeout 180
+docker compose up --build -d --wait --wait-timeout 180 db migrate ingestion trends api web
 docker compose ps
 curl --fail http://localhost:8000/api/v1/health
 ```
@@ -52,7 +68,12 @@ curl --fail http://localhost:8000/api/v1/health
 Open [localhost:3000](http://localhost:3000); API docs are at [localhost:8000/docs](http://localhost:8000/docs). The database is not exposed to the host. Migrations execute before the API starts; they never run in request handlers. Fresh database initialization creates `trendsky_app` without superuser/database/role creation privileges.
 
 ```bash
-docker compose logs --tail=100 api web migrate
+docker compose logs --tail=100 api web migrate ingestion trends
+curl --fail http://localhost:8000/api/v1/ingestion/status
+curl --fail http://localhost:8000/api/v1/ingestion/stats
+curl --fail 'http://localhost:8000/api/v1/ingestion/coverage?limit=20'
+curl --fail 'http://localhost:8000/api/v1/trending?category=popular&window=5&language=all'
+curl --fail http://localhost:8000/api/v1/trending/status
 docker compose down
 ```
 
@@ -99,13 +120,37 @@ Python tests use deterministic SQLite fixtures for transport and migration logic
 
 ## Documentation and roadmap
 
-[Architecture](docs/ARCHITECTURE.md) · [Design system](docs/DESIGN-SYSTEM.md) · [Data dictionary](docs/DATA-DICTIONARY.md) · [Security](docs/SECURITY.md) · [Deployment](docs/DEPLOYMENT.md) · [Engineering report](docs/MILESTONE-1-REPORT.md)
+[Architecture](docs/ARCHITECTURE.md) · [Design system](docs/DESIGN-SYSTEM.md) · [Illustration guidelines](docs/ILLUSTRATION-GUIDELINES.md) · [Data dictionary](docs/DATA-DICTIONARY.md) · [Security](docs/SECURITY.md) · [Deployment](docs/DEPLOYMENT.md) · [Milestone 1.5 report](docs/MILESTONE-1.5-REPORT.md)
 
-After Milestone 1 acceptance is verified, Milestone 2 is Jetstream ingestion with validation, deduplication, durable checkpoints, reconnect logic, deletion handling and collection coverage. Trend detection, Explore/Compare analytics, historical processing and ML follow in order. No paid cloud infrastructure is provisioned.
+Full Explore/Compare analytics, historical processing and ML follow this statistical ranking milestone. Jetstream data is public Bluesky conversation data, not Google search interest or a complete view of Bluesky history. Collection begins at worker startup; known outages and invalid frames are represented as coverage gaps, not zero activity. Data is retained for 30 days by default. No paid cloud infrastructure is provisioned.
 
 ## Limitations
 
-This foundation does not measure activity, offer semantic matching, compare topics, produce chart exports or predict trends. Disabled filters communicate unavailable history. Search currently implements navigation and query preservation only. No performance benchmark, model accuracy or production-readiness claim is made. Caddy and GitHub Actions are configured but local execution evidence is tracked separately.
+Topic discovery and measured activity are implemented. Semantic matching, full topic comparison, chart exports and prediction remain later milestones. The basic Explore summary resolves exact discovered topics and links from trend cards. Both SQLite and isolated PostgreSQL 18 validation are recorded, including actual PostgreSQL plans and transaction/trigger tests. Production performance and repaired live collection remain unverified. Caddy and GitHub Actions execution evidence is tracked separately.
+
+## Update an existing collecting installation
+
+For the current ingestion incident, follow the complete [Milestone 3.1 recovery procedure](docs/MILESTONE-3.1-RECOVERY-REPORT.md). Docker permissions blocked deployment during this execution; recovery is **not complete**. The existing backup archive is zero bytes. Create and validate a new backup before operational changes; never reset the checkpoint or recreate the database.
+
+The repair covers NUL-bearing post text, language metadata and hashtag facets. It adds safe JSON diagnostics, classified retries, a durable operator hold for deterministic faults, and separate health signals for ingestion/analysis/database readiness. It preserves the design and existing atomic source/queue/checkpoint transaction. No new migration is required at revision `0003_trends`. The following are build/read-only inspection commands, not proof of recovery:
+
+```bash
+docker compose build api ingestion trends web
+docker compose run --rm --no-deps api python -m trendsky_api.operations
+docker compose run --rm --no-deps api alembic current
+```
+
+After backup/schema inspection, the runbook restores ingestion first, observes at least 180 seconds, resumes bounded trend processing and verifies another controlled ingestion restart. `scripts/verify_recovery.py` checks actual API progress without changing state. The default processor handles batches of 500, pauses 0.25 seconds between backlogged batches (`TRENDS_BATCH_PAUSE_SECONDS`), publishes every 60 seconds, has a 384 MiB/0.5 CPU Compose limit, and uses a small database pool.
+
+Recovery validation passed 84 backend tests (including PostgreSQL), 22 frontend unit tests and 26 browser tests. The [25,000-post PostgreSQL artifact](docs/evidence/milestone-3.1-postgres.json) records median/p95 batch latency of 149/417 ms on a private tmpfs test cluster; these are not production throughput guarantees. See [incident analysis](docs/INGESTION-INCIDENT-ANALYSIS.md) and [implementation status](docs/IMPLEMENTATION-STATUS.md) for evidence and remaining gates.
+
+Run isolated analytical validation without Bluesky or operational database access:
+
+```bash
+.venv/bin/python scripts/validate_trends.py --posts 25000
+```
+
+See [methodology](docs/TREND-METHODOLOGY.md) for formulas, thresholds, language limitations and contributor caps. Browser CI uses a synthetic test-only HTTP fixture; it does not contact Bluesky or substitute sample data in the application.
 
 ## Author and font licence
 

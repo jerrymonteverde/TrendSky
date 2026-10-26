@@ -1,0 +1,108 @@
+{
+  "dataset": "deterministic synthetic observations; no live Bluesky data",
+  "database": "SQLite",
+  "posts_seeded": 25000,
+  "posts_extracted": 25000,
+  "python": "3.14.4",
+  "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+  "logical_cpus": 12,
+  "peak_rss_kib_linux": 96120,
+  "extraction_ms": 9345.301,
+  "window_refresh_timings": [
+    {
+      "published": 16,
+      "query_ms": 228.84166900257696,
+      "duration_ms": 252.70146099865087
+    },
+    {
+      "published": 16,
+      "query_ms": 561.8153280011029,
+      "duration_ms": 605.2815479997662
+    },
+    {
+      "published": 16,
+      "query_ms": 721.6280290012946,
+      "duration_ms": 844.1092770008254
+    },
+    {
+      "published": 16,
+      "query_ms": 719.712130001426,
+      "duration_ms": 840.9076440002536
+    },
+    {
+      "published": 16,
+      "query_ms": 719.6553330031747,
+      "duration_ms": 840.9499539993703
+    }
+  ],
+  "scenario_metrics": {
+    "steady": {
+      "current_activity": 12,
+      "previous_activity": 12,
+      "unique_contributors": 10,
+      "growth_percent": 0.0,
+      "trend_status": "Stable",
+      "coverage_status": "complete_observed_window"
+    },
+    "rocket": {
+      "current_activity": 20,
+      "previous_activity": 8,
+      "unique_contributors": 10,
+      "growth_percent": 150.0,
+      "trend_status": "Rising",
+      "coverage_status": "complete_observed_window"
+    },
+    "declining": {
+      "current_activity": 4,
+      "previous_activity": 12,
+      "unique_contributors": 4,
+      "growth_percent": -66.6667,
+      "trend_status": "Declining",
+      "coverage_status": "complete_observed_window"
+    },
+    "newtopic": {
+      "current_activity": 10,
+      "previous_activity": 0,
+      "unique_contributors": 10,
+      "growth_percent": null,
+      "trend_status": "Emerging",
+      "coverage_status": "complete_observed_window"
+    }
+  },
+  "deletion_correction": {
+    "current_activity": 5,
+    "growth_percent": -37.5
+  },
+  "missing_coverage": {
+    "growth_percent": null,
+    "coverage_status": "partial_coverage"
+  },
+  "sqlite_query_plan": [
+    "CO-ROUTINE anon_1",
+    "CO-ROUTINE anon_2",
+    "COMPOUND QUERY",
+    "LEFT-MOST SUBQUERY",
+    "SEARCH post_topics USING INDEX ix_post_topics_topic_activity (topic_id=? AND activity_at>? AND activity_at<?)",
+    "LIST SUBQUERY 1",
+    "SEARCH post_topics USING INDEX ix_post_topics_activity_language (activity_at>? AND activity_at<?)",
+    "SEARCH posts USING INDEX sqlite_autoindex_posts_1 (uri=?)",
+    "USE TEMP B-TREE FOR GROUP BY",
+    "USE TEMP B-TREE FOR count(DISTINCT)",
+    "USE TEMP B-TREE FOR ORDER BY",
+    "SEARCH posts USING INDEX sqlite_autoindex_posts_1 (uri=?)",
+    "UNION ALL",
+    "SEARCH post_topics USING INDEX ix_post_topics_topic_activity (topic_id=? AND activity_at>? AND activity_at<?)",
+    "LIST SUBQUERY 4",
+    "SEARCH post_topics USING INDEX ix_post_topics_activity_language (activity_at>? AND activity_at<?)",
+    "SEARCH posts USING INDEX sqlite_autoindex_posts_1 (uri=?)",
+    "USE TEMP B-TREE FOR GROUP BY",
+    "USE TEMP B-TREE FOR count(DISTINCT)",
+    "USE TEMP B-TREE FOR ORDER BY",
+    "SEARCH posts USING INDEX sqlite_autoindex_posts_1 (uri=?)",
+    "SCAN anon_2",
+    "USE TEMP B-TREE FOR GROUP BY",
+    "SCAN anon_1",
+    "USE TEMP B-TREE FOR GROUP BY"
+  ],
+  "postgres_explain_analyze": "not executed: operational Docker database inaccessible"
+}

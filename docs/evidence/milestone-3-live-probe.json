@@ -1,0 +1,39 @@
+{
+  "purpose": "Read-only operational diagnostics; not published trend statistics",
+  "initial_ingestion_observation": {
+    "status": "collecting",
+    "posts_stored": 23720,
+    "posts_per_minute": 2011.0,
+    "last_persisted_at": "2026-10-26T02:34:35.127499Z"
+  },
+  "later_ingestion_observation": {
+    "status": "reconnecting",
+    "posts_stored": 86856,
+    "last_event_at": "2026-10-26T03:00:05.969447Z",
+    "last_persisted_at": "2026-10-26T03:00:06.087061Z",
+    "last_seq": 26446247963,
+    "processing_errors": 30,
+    "reconnection_count": 50,
+    "api_database_health": "ready"
+  },
+  "jetstream_current_tip_probe": {
+    "connected": true,
+    "subprotocol": "xrpc.v1.json",
+    "event_kind": "commit"
+  },
+  "checkpoint_replay_probe": {
+    "frames": 300,
+    "posts": 293,
+    "extracted_topic_mentions": 1012,
+    "declared_languages": {"en": 139, "es": 1, "unknown": 100, "other": 53},
+    "postgres_text_nul_records": 6,
+    "hashtag_over_128": 0,
+    "hashtag_nul": 0,
+    "first_sequence": 26446247963,
+    "last_sequence": 26446249657
+  },
+  "raw_content_persisted": false,
+  "operational_database_modified": false,
+  "milestone_3_deployed": false,
+  "limitation": "Docker socket permission denied; ingestion normalization fix and trend migration require host deployment"
+}

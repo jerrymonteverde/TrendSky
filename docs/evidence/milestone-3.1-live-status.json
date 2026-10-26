@@ -1,0 +1,27 @@
+{
+  "observed_at": "2026-10-26T04:55:05.757066+00:00",
+  "deployed_repair": false,
+  "health": {
+    "status": "ok",
+    "database": "connected",
+    "schema_status": "ready"
+  },
+  "ingestion/status": {
+    "status": "reconnecting",
+    "posts_stored": 167331,
+    "last_seq": 26446992220,
+    "last_persisted_at": "2026-10-26T03:51:38.208658Z",
+    "last_event_at": "2026-10-26T03:28:29.768269Z",
+    "cursor_expired": false
+  },
+  "ingestion/stats": {
+    "processing_errors": 97,
+    "reconnection_count": 118
+  },
+  "trending/status": {
+    "status": "stale",
+    "last_calculated_at": "2026-10-26T04:09:52.676724Z",
+    "backlog": 0,
+    "errors": 2
+  }
+}

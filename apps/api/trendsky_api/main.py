@@ -16,8 +16,17 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from trendsky_api.config import get_settings
 from trendsky_api.database import get_engine
+from trendsky_api.ingestion.store import IngestionStore
 from trendsky_api.models import DataSource
-from trendsky_api.schemas import CollectionSummary, Health
+from trendsky_api.observability import error_fields
+from trendsky_api.schemas import (
+    CollectionSummary,
+    CoverageSnapshot,
+    Health,
+    IngestionStats,
+    IngestionStatus,
+)
+from trendsky_api.trends.api import create_router
 
 logger = logging.getLogger("trendsky.api")
 
@@ -77,7 +86,7 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(SQLAlchemyError)
     async def database_error(request: Request, exc: SQLAlchemyError) -> JSONResponse:
-        logger.error("database_unavailable", extra={"path": request.url.path})
+        logger.error("database_unavailable", extra=error_fields(exc))
         return JSONResponse(status_code=503, content={"detail": "Data service unavailable."})
 
     @app.exception_handler(RequestValidationError)
@@ -95,27 +104,72 @@ def create_app() -> FastAPI:
             with get_engine().connect() as connection:
                 connection.execute(text("SELECT 1"))
                 database = "connected"
+                if connection.dialect.name == "postgresql":
+                    connection.execute(text("SET LOCAL statement_timeout = '2000ms'"))
                 source = connection.execute(
                     select(DataSource.id).where(DataSource.id == "bluesky")
                 ).scalar_one()
                 revision = connection.execute(text("SELECT version_num FROM alembic_version"))
-                if source and revision.scalar_one() == "0001_sources":
-                    return Health(status="ok", database="connected", schema_status="ready")
-        except SQLAlchemyError:
-            logger.warning("readiness_failed")
+                if source and revision.scalar_one() == "0003_trends":
+                    return Health(
+                        status="ok",
+                        database="connected",
+                        schema_status="ready",
+                        database_health="available",
+                    )
+        except SQLAlchemyError as exc:
+            logger.warning("readiness_failed", extra=error_fields(exc))
         response.status_code = 503
         return Health(
             status="unavailable",
             database="connected" if database == "connected" else "unavailable",
             schema_status="unavailable",
+            database_health="degraded" if database == "connected" else "unavailable",
         )
 
     @app.get("/api/v1/analytics/summary", response_model=CollectionSummary)
     def summary() -> CollectionSummary:
-        with get_engine().connect() as connection:
-            connection.execute(select(DataSource.id).where(DataSource.id == "bluesky")).scalar_one()
-        return CollectionSummary()
+        snapshot = IngestionStore(get_engine()).status_snapshot(
+            settings.ingestion_heartbeat_timeout_seconds
+        )
+        message = {
+            "not_started": "Collection has not started. No conversation data is available.",
+            "collecting": "Collecting public Bluesky conversations.",
+            "connecting": "Connecting to Bluesky.",
+            "reconnecting": "Waiting to reconnect to Bluesky.",
+            "interrupted": "Collection is interrupted. Coverage may be incomplete.",
+            "error": "Collection encountered an error.",
+        }[snapshot["status"]]
+        return CollectionSummary(
+            source="Bluesky",
+            collection_status=snapshot["status"],
+            collection_started_at=snapshot["collection_started_at"],
+            latest_event_at=snapshot["last_event_at"],
+            observed_posts=snapshot["posts_stored"],
+            message=message,
+        )
 
+    @app.get("/api/v1/ingestion/status", response_model=IngestionStatus)
+    def ingestion_status() -> IngestionStatus:
+        snapshot = IngestionStore(get_engine()).status_snapshot(
+            settings.ingestion_heartbeat_timeout_seconds
+        )
+        return IngestionStatus(**snapshot)
+
+    @app.get("/api/v1/ingestion/stats", response_model=IngestionStats)
+    def ingestion_stats() -> IngestionStats:
+        return IngestionStats.model_validate(
+            IngestionStore(get_engine()).stats_snapshot(
+                settings.ingestion_heartbeat_timeout_seconds
+            )
+        )
+
+    @app.get("/api/v1/ingestion/coverage", response_model=CoverageSnapshot)
+    def ingestion_coverage(limit: int = 50) -> CoverageSnapshot:
+        snapshot = IngestionStore(get_engine()).coverage_snapshot(max(1, min(limit, 200)))
+        return CoverageSnapshot.model_validate(snapshot)
+
+    app.include_router(create_router(lambda: get_engine(), settings))
     return app
 
 

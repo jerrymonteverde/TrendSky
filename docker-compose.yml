@@ -5,6 +5,34 @@ x-api-environment: &api-environment
   POSTGRES_DB: ${POSTGRES_DB:-trendsky}
   APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env}
   CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
+  INGESTION_ENABLED: ${INGESTION_ENABLED:-true}
+  JETSTREAM_URL: ${JETSTREAM_URL:-wss://jetstream.us-east.bsky.network}
+  INGESTION_BATCH_SIZE: ${INGESTION_BATCH_SIZE:-250}
+  INGESTION_FLUSH_INTERVAL_MS: ${INGESTION_FLUSH_INTERVAL_MS:-1000}
+  INGESTION_QUEUE_MAX_SIZE: ${INGESTION_QUEUE_MAX_SIZE:-5000}
+  INGESTION_RETENTION_DAYS: ${INGESTION_RETENTION_DAYS:-30}
+  INGESTION_HEARTBEAT_INTERVAL_SECONDS: ${INGESTION_HEARTBEAT_INTERVAL_SECONDS:-15}
+  INGESTION_HEARTBEAT_TIMEOUT_SECONDS: ${INGESTION_HEARTBEAT_TIMEOUT_SECONDS:-60}
+  INGESTION_RECONNECT_BASE_SECONDS: ${INGESTION_RECONNECT_BASE_SECONDS:-1}
+  INGESTION_RECONNECT_MAX_SECONDS: ${INGESTION_RECONNECT_MAX_SECONDS:-60}
+  TRENDS_ENABLED: ${TRENDS_ENABLED:-true}
+  TRENDS_BATCH_SIZE: ${TRENDS_BATCH_SIZE:-500}
+  TRENDS_REFRESH_SECONDS: ${TRENDS_REFRESH_SECONDS:-60}
+  TRENDS_BATCH_PAUSE_SECONDS: ${TRENDS_BATCH_PAUSE_SECONDS:-0.25}
+  TRENDS_MIN_POSTS: ${TRENDS_MIN_POSTS:-5}
+  TRENDS_MIN_CONTRIBUTORS: ${TRENDS_MIN_CONTRIBUTORS:-3}
+  TRENDS_EMERGING_MIN_POSTS: ${TRENDS_EMERGING_MIN_POSTS:-10}
+  TRENDS_EMERGING_MIN_CONTRIBUTORS: ${TRENDS_EMERGING_MIN_CONTRIBUTORS:-5}
+  TRENDS_GROWTH_THRESHOLD: ${TRENDS_GROWTH_THRESHOLD:-25}
+  TRENDS_EMERGING_LIFT: ${TRENDS_EMERGING_LIFT:-2}
+  TRENDS_BASELINE_WINDOWS: ${TRENDS_BASELINE_WINDOWS:-6}
+  TRENDS_MIN_BASELINE_WINDOWS: ${TRENDS_MIN_BASELINE_WINDOWS:-3}
+  TRENDS_LATENESS_SECONDS: ${TRENDS_LATENESS_SECONDS:-60}
+  TRENDS_STALE_SECONDS: ${TRENDS_STALE_SECONDS:-180}
+  TRENDS_MAX_TOPICS: ${TRENDS_MAX_TOPICS:-500}
+  TRENDS_MIN_TOKEN_LENGTH: ${TRENDS_MIN_TOKEN_LENGTH:-3}
+  TRENDS_MAX_KEYWORDS_PER_POST: ${TRENDS_MAX_KEYWORDS_PER_POST:-12}
+  TRENDS_PHRASES: ${TRENDS_PHRASES:-["artificial intelligence","climate change","machine learning","video games","inteligencia artificial","cambio climático","aprendizaje automático","video juegos","mental health","salud mental"]}
 
 services:
   db:
@@ -36,6 +64,32 @@ services:
     depends_on:
       db: { condition: service_healthy }
     restart: "no"
+    logging: *logging
+
+  ingestion:
+    build: { context: ., dockerfile: infrastructure/docker/api.Dockerfile }
+    environment: *api-environment
+    command: ["python", "-m", "trendsky_api.ingestion.worker"]
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+    stop_grace_period: 30s
+    mem_limit: 384m
+    cpus: 1
+    logging: *logging
+
+  trends:
+    build: { context: ., dockerfile: infrastructure/docker/api.Dockerfile }
+    environment: *api-environment
+    command: ["python", "-m", "trendsky_api.trends.worker"]
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+    stop_grace_period: 30s
+    mem_limit: 384m
+    cpus: 0.5
     logging: *logging
 
   api:

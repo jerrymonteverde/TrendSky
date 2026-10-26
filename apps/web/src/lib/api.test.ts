@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getCollectionState } from "./api";
+import { getCollectionState, getIngestionStatus } from "./api";
 afterEach(() => vi.unstubAllGlobals());
 describe("collection status transport", () => {
   it("reads the implemented API contract", async () => {
@@ -20,5 +20,16 @@ describe("collection status transport", () => {
   it("handles network failures", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     expect(await getCollectionState()).toBe("unavailable");
+  });
+
+  it("reads live counts and heartbeats from the ingestion status endpoint", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      status: "collecting", source: "bluesky", posts_stored: 42, posts_per_minute: 4.5,
+      last_event_at: null, last_persisted_at: "2026-10-24T12:00:00Z", last_status_update_at: null,
+      collection_started_at: null, last_seq: 12, cursor_expired: false,
+    })));
+    vi.stubGlobal("fetch", fetcher);
+    expect(await getIngestionStatus()).toMatchObject({ status: "collecting", posts_stored: 42, posts_per_minute: 4.5 });
+    expect(fetcher.mock.calls[0][0]).toContain("/api/v1/ingestion/status");
   });
 });
